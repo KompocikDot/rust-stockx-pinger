@@ -77,13 +77,11 @@ async fn get_stockx_data(client: &Client) -> Result<Response, reqwest::Error> {
         .await
 }
 
-#[tokio::main]
-async fn main() {
-    dotenv().ok();
+async fn run_pinger() {
     let webook_url = env::var("WEBHOOK_URL").expect("Webhook url is empty");
     let client = create_http_client();
-
     let mut last_price: u16 = 0;
+
     loop {
         let req: Result<Response, reqwest::Error> = get_stockx_data(&client).await;
         let resp = match req {
@@ -101,4 +99,10 @@ async fn main() {
         }
         time::sleep(Duration::from_secs(300)).await;
     }
+}
+
+#[tokio::main]
+async fn main() {
+    dotenv().ok();
+    run_pinger().await;
 }
