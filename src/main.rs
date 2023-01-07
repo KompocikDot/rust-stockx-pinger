@@ -69,8 +69,9 @@ fn create_http_client() -> Client {
         .unwrap()
 }
 
-async fn get_stockx_data(client: &Client) -> Result<Response, reqwest::Error> {
-    client.get("https://stockx.com/api/products/adidas-samba-black-white-gum/?currency=GBP&includes=market")
+async fn get_stockx_data(client: &Client, url_key: &String) -> Result<Response, reqwest::Error> {
+    let url = format!("https://stockx.com/api/products/{}/?currency=GBP&includes=market", url_key);
+    client.get(url)
         .send()
         .await?
         .json::<Response>()
@@ -81,9 +82,11 @@ async fn run_pinger() {
     let webook_url = env::var("WEBHOOK_URL").expect("Webhook url is empty");
     let client = create_http_client();
     let mut last_price: u16 = 0;
+    let look_for_size = env::var("LOOK_FOR_SIZE").expect("look_for_size variable is not set");
+    let item_url_key = env::var("ITEM_URL_KEY").expect("item_url_key variable is not set");
 
     loop {
-        let req: Result<Response, reqwest::Error> = get_stockx_data(&client).await;
+        let req: Result<Response, reqwest::Error> = get_stockx_data(&client, &item_url_key).await;
         let resp = match req {
             Ok(resp) => resp,
             Err(error) => panic!("{:?}", error),
@@ -92,7 +95,7 @@ async fn run_pinger() {
         let items: HashMap<String, ProductData> = resp.product.children;
         for item in items {
             let bid: u16 = item.1.market.highest_bid;
-            if item.1.shoe_size == "6" && last_price < bid {
+            if item.1.shoe_size == look_for_size && last_price < bid {
                 last_price = bid;
                 send_webhook(&webook_url, bid).await;
             }
